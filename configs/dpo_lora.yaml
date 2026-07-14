@@ -1,0 +1,34 @@
+model_name_or_path: models/Qwen2.5-Coder-7B-Instruct
+sft_adapter_path: output_models/qwen-coder-simplifier-lora
+dpo_dataset_path: data/python_code_simplification/dpo/python_simple_coder_dpo_train.jsonl
+final_validation_dataset_path: data/python_code_simplification/dpo/python_simple_coder_dpo_final_valid.jsonl
+output_dir: output_models/qwen-coder-simplifier-dpo-lora
+
+max_train_samples:
+test_size: 0.05
+seed: 42
+
+load_in_4bit: false
+bnb_4bit_quant_type: nf4
+bnb_4bit_compute_dtype: float16
+
+beta: 0.05
+loss_type: sigmoid
+max_length: 2048
+max_prompt_length: 1536
+max_target_length: 512
+
+num_train_epochs: 1
+per_device_train_batch_size: 1
+per_device_eval_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 2.0e-6
+warmup_ratio: 0.03
+weight_decay: 0.0
+lr_scheduler_type: cosine
+logging_steps: 10
+save_steps: 50
+eval_steps: 50
+save_total_limit: 2
+gradient_checkpointing: true
+report_to: none
