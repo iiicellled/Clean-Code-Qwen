@@ -2,10 +2,10 @@
 
 本项目基于 `Qwen/Qwen2.5-Coder-7B-Instruct`，面向 Python 代码生成与代码简化任务完成了两阶段微调：
 
-1. **SFT（Supervised Fine-tuning）**：让模型学习给定函数需求后输出正确、简洁、可读的 Python 代码。
-2. **DPO（Direct Preference Optimization）**：在 SFT 适配器基础上继续做偏好优化，使模型更稳定地输出纯代码，并减少冗余解释、Markdown 包裹和不必要的复杂实现。
+1. **SFT（监督微调）**：让模型学习给定函数需求后输出正确、简洁、可读的 Python 代码。
+2. **DPO（直接偏好优化）**：在 SFT 适配器基础上继续做偏好优化，使模型更稳定地输出纯代码，并减少冗余解释、Markdown 包裹和不必要的复杂实现。
 
-当前仓库中已经保留了 SFT 和 DPO 的训练日志、LoRA 适配器以及评估结果。
+当前仓库中已经保留了 SFT 和 DPO 的训练日志、LoRA 适配器以及评估结果；同时开源了面向 Python 精简代码生成任务的 SFT 与 DPO 微调数据集，便于复现实验、扩展偏好数据和迁移到其他代码模型。
 
 ## 当前状态
 
@@ -15,8 +15,20 @@
 - SFT 适配器：`output_models/qwen-coder-simplifier-lora`
 - DPO 适配器：`output_models/qwen-coder-simplifier-dpo-lora`
 - 训练日志：`sft.log`、`dpo.log`
+- SFT 数据集：`data/python_simple_coder/sft`
+- DPO 偏好数据集：`data/python_simple_coder/dpo`
 - SFT 评估生成结果：`output_results/sft-evaluation`
 - 最终 DPO 对比评估：`output_results/dpo-final-evaluation`
+
+## 项目贡献
+
+本项目不仅完成了 Qwen Coder 的 SFT 与 DPO 微调，还开源了配套的精简代码微调数据集：
+
+- **SFT 数据集**：面向指令监督微调，样本由 `instruction` 和 `output` 组成，目标是训练模型直接输出正确、简洁的 Python 函数代码。
+- **DPO 数据集**：面向偏好优化，样本由 `prompt`、`chosen` 和 `rejected` 组成，目标是让模型偏好更正确、更符合接口、更简洁、更少解释性文本的答案。
+- **统一评估集**：保留 base、SFT、DPO 三个模型的生成结果和评估报告，便于复现实验结论和继续扩展数据。
+
+数据集格式在后文“开源数据集与格式”中统一说明。
 
 ## 最终三个模型评估结果
 
@@ -99,32 +111,54 @@ pip install -r requirements.txt
 
 如果安装 `bitsandbytes` 遇到问题，可以保持配置中的 `load_in_4bit: false`，使用全精度/半精度加载模型。
 
-## 数据格式
+## 开源数据集与格式
 
-### SFT 数据
+本项目开源了两类精简代码微调数据集，统一保存在 `data/python_simple_coder` 下：
 
-SFT 数据使用 JSONL，每行至少包含 `instruction` 和 `output`：
+- `sft/`：监督微调数据，用于让模型学习“根据函数需求直接输出正确、简洁的 Python 代码”。
+- `dpo/`：偏好优化数据，用于让模型在两个候选答案中偏好更正确、更符合接口、更简洁、更少解释性文本的答案。
+
+两类数据都采用 JSONL 格式，即每一行是一个独立 JSON 对象，方便用 `datasets`、`jsonlines` 或普通流式读取方式加载。
+
+### SFT 数据格式
+
+SFT 数据每行至少包含 `instruction` 和 `output`：
 
 ```json
 {"instruction":"Write a function with exact signature:\ndef add(a, b)","output":"def add(a, b):\n    return a + b"}
 ```
 
-训练脚本会把样本转成 Qwen chat template，并默认只对 assistant 的回答部分计算 loss。
+字段含义：
 
-### DPO 数据
+- `instruction`：用户侧任务描述，通常包含函数功能、函数名、参数签名和必要约束。
+- `output`：期望模型生成的答案，只保留 Python 代码，不包含 Markdown 或额外解释。
+- `id`：可选字段，用于追踪样本来源和评估结果。
 
-DPO 数据使用 JSONL，每行至少包含 `prompt`、`chosen`、`rejected`：
+训练脚本会把 SFT 样本转成 Qwen chat template，并默认只对 assistant 的回答部分计算 loss，避免模型学习复制 prompt。
+
+### DPO 数据格式
+
+DPO 数据每行至少包含 `prompt`、`chosen`、`rejected`：
 
 ```json
 {"prompt":"Write a function with exact signature:\ndef is_even(n)","chosen":"def is_even(n):\n    return n % 2 == 0","rejected":"def is_even(n):\n    if n % 2 == 0:\n        return True\n    else:\n        return False"}
 ```
 
-其中 `chosen` 是偏好的答案，`rejected` 是不希望模型学习的答案。当前 DPO 数据侧重三类偏好：
+字段含义：
+
+- `prompt`：用户侧任务描述，和 SFT 的 `instruction` 作用相同。
+- `chosen`：偏好的答案，要求正确、接口匹配、简洁，并尽量只输出代码。
+- `rejected`：不偏好的答案，可能存在冗余、格式不稳定、接口不匹配或边界条件问题。
+- `pair_type`：可选字段，用于标记偏好对类型。
+- `error_type`：可选字段，用于记录 rejected 答案的主要问题。
+
+当前 DPO 数据主要覆盖三类偏好：
 
 - `correctness_protection`：保护正确性和边界条件。
 - `interface_and_format_protection`：保护函数名、签名和纯代码格式。
 - `simplicity_preference`：偏好更简洁但仍正确的实现。
 
+这种设计让数据集既能支持 SFT 阶段的指令学习，也能支持 DPO 阶段的偏好对齐；重点不是泛化到所有代码任务，而是围绕“精简、正确、纯代码”的 Python 函数生成场景做可复现的微调实验。
 ## SFT 训练
 
 当前 SFT 配置位于 `configs/sft_lora.yaml`，关键设置如下：
