@@ -95,7 +95,6 @@ sft_lora_coder/
 推荐使用 Python 3.10 或 3.11。
 
 ```powershell
-cd sft_lora_coder
 pip install -r requirements.txt
 ```
 
@@ -115,10 +114,10 @@ pip install -r requirements.txt
 
 本项目开源了两类精简代码微调数据集，统一保存在 `data/python_simple_coder` 下：
 
-- `sft/`：监督微调数据，用于让模型学习“根据函数需求直接输出正确、简洁的 Python 代码”。
-- `dpo/`：偏好优化数据，用于让模型在两个候选答案中偏好更正确、更符合接口、更简洁、更少解释性文本的答案。
-
-两类数据都采用 JSONL 格式，即每一行是一个独立 JSON 对象，方便用 `datasets`、`jsonlines` 或普通流式读取方式加载。
+- `sft/`：监督微调数据，用于让模型学习“根据函数需求直接输出正确、简洁的 Python 代码”。总数据量约 1700 条。
+- `dpo/`：偏好优化数据，用于让模型在两个候选答案中偏好更正确、更符合接口、更简洁、更少解释性文本的答案。总数据量约 2100 条。
+- 两类数据集都主要由 GPT-5.5 和 Deepseek 批量生成，其中 DPO 数据集则以 SFT 模型在测试中的易错点为基础而生成。
+- 两类数据都采用 JSONL 格式，即每一行是一个独立 JSON 对象，方便用 `datasets`、`jsonlines` 或普通流式读取方式加载。
 
 ### SFT 数据格式
 
