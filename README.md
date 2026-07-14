@@ -1,4 +1,4 @@
-# Clean Code Qwen，一个 Qwen Coder 精简代码生成 SFT + DPO 项目（个人学习用）
+# Clean Code Qwen，一个 Qwen Coder 精简代码生成 SFT + DPO 项目
 
 本项目基于 `Qwen/Qwen2.5-Coder-7B-Instruct`，面向 Python 代码生成与代码简化任务完成了两阶段微调：
 
